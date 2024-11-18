@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UTM Parameter Persistence
-Plugin URI: https://github.com/alexKov24
+Plugin URI: https://github.com/alexKov24/utm-parameter-persistence
 Description: Track and maintain UTM parameters across your WordPress site. Automatically captures UTM parameters from incoming traffic and persists them across page transitions using localStorage. Perfect for marketing analytics and conversion tracking.
 Version: 1.0.0
 Requires at least: 5.2

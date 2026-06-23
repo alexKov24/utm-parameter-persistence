@@ -1,4 +1,6 @@
-# UTM Parameter Persistence
+# Simple Stupid UTM Persister
+
+You need to maintain utm params in url? need it to persist between pages? just pop this script in mu-plugins
 
 Track and maintain UTM parameters across your WordPress site using localStorage. Perfect for marketing analytics and conversion tracking.
 

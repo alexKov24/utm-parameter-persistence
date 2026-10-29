@@ -29,67 +29,87 @@ class UTMParameterPersistence
     {
 ?>
         <script>
-            const UTM_STORAGE_KEY = 'stored_utm_params';
-            const UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+            (function() {
+                const UTM_STORAGE_KEY = 'stored_utm_params';
+                const UTM_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
 
-            // Capture UTM parameters from URL
-            function captureUTMParameters() {
-                const urlParams = new URLSearchParams(window.location.search);
-                const utmData = {};
-                let hasUtm = false;
+                // Capture UTM parameters from URL
+                function captureUTMParameters() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const utmData = {};
+                    let hasUtm = false;
 
-                UTM_PARAMS.forEach(param => {
-                    if (urlParams.has(param)) {
-                        utmData[param] = urlParams.get(param);
-                        hasUtm = true;
+                    UTM_PARAMS.forEach(param => {
+                        if (urlParams.has(param)) {
+                            utmData[param] = urlParams.get(param);
+                            hasUtm = true;
+                        }
+                    });
+
+                    if (hasUtm) {
+                        try {
+                            localStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(utmData));
+                        } catch (e) {}
                     }
-                });
-
-                if (hasUtm) {
-                    localStorage.setItem(UTM_STORAGE_KEY, JSON.stringify(utmData));
                 }
-            }
 
-            // Add UTMs to URL
-            function addUTMsToUrl(url) {
-                const storedUtms = localStorage.getItem(UTM_STORAGE_KEY);
-                if (!storedUtms) return url;
-
-                const utmParams = JSON.parse(storedUtms);
-                const urlObj = new URL(url, window.location.origin);
-
-                // Don't modify if URL already has UTM parameters
-                const hasExistingUTMs = UTM_PARAMS.some(param => urlObj.searchParams.has(param));
-                if (hasExistingUTMs) return url;
-
-                // Add stored UTM parameters
-                Object.entries(utmParams).forEach(([key, value]) => {
-                    urlObj.searchParams.append(key, value);
-                });
-
-                return urlObj.toString();
-            }
-
-            function modifyLinks() {
-                document.querySelectorAll('a').forEach(link => {
-                    const href = link.getAttribute('href');
-                    if (!href) return;
-
+                // localStorage can throw (private mode, blocked storage) or hold bad JSON
+                function getStoredUTMs() {
                     try {
-                        const url = new URL(href, window.location.origin);
-                        link.setAttribute('href', addUTMsToUrl(url.toString()));
-
+                        return JSON.parse(localStorage.getItem(UTM_STORAGE_KEY));
                     } catch (e) {
-                        console.error('Error processing URL:', href, e);
+                        return null;
                     }
-                });
-            }
+                }
 
-            // Initialize on page load
-            document.addEventListener('DOMContentLoaded', () => {
+                // Add stored UTMs to a link, unless it already has its own
+                function decorateLink(link) {
+                    const utmParams = getStoredUTMs();
+                    if (!utmParams) return;
+
+                    const href = link.getAttribute('href');
+                    // Skip empty and same-page anchors (#top), they would cause a reload
+                    if (!href || href.startsWith('#')) return;
+
+                    let url;
+                    try {
+                        url = new URL(href, window.location.href);
+                    } catch (e) {
+                        return;
+                    }
+
+                    // Skip mailto:, tel:, javascript: etc.
+                    if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+                    if (UTM_PARAMS.some(param => url.searchParams.has(param))) return;
+
+                    Object.entries(utmParams).forEach(([key, value]) => {
+                        url.searchParams.set(key, value);
+                    });
+
+                    link.setAttribute('href', url.toString());
+                }
+
+                function modifyLinks() {
+                    document.querySelectorAll('a[href]').forEach(decorateLink);
+                }
+
+                // Links added after load (menus, popups, AJAX) get decorated when clicked
+                function onLinkClick(e) {
+                    const link = e.target.closest && e.target.closest('a[href]');
+                    if (link) decorateLink(link);
+                }
+
                 captureUTMParameters();
-                modifyLinks();
-            });
+                document.addEventListener('click', onLinkClick, true);
+                document.addEventListener('auxclick', onLinkClick, true);
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', modifyLinks);
+                } else {
+                    modifyLinks();
+                }
+            })();
         </script>
 <?php
     }
